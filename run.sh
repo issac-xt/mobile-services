@@ -10,13 +10,13 @@ echo "📦 Ensuring required packages..."
 pkg install -y python python-pip curl git termux-api
 
 echo "🐍 Checking Python dependencies..."
-pip install -q flask requests wakeonlan paramiko python-dotenv
+pip install -q flask requests wakeonlan python-dotenv
 
 echo "🔍 Verifying installation..."
 python - << 'EOF'
 import importlib, sys
 
-mods = ["flask", "requests", "wakeonlan", "paramiko", "dotenv"]
+mods = ["flask", "requests", "wakeonlan", "dotenv"]
 missing = []
 
 for m in mods:

@@ -92,11 +92,15 @@ def poweroff(device):
         return jsonify({"error": "Unknown device"}), 404
 
     ip = entry["local_ip"]
-    url = f"https://{ip}/api/v2.0/system/shutdown"
-    headers = {"Authorization": f"Bearer {TRUENAS_API_KEY}"}
+    url = f"http://{ip}/api/v2.0/system/shutdown/"
+    headers = {
+        "Authorization": f"Bearer {TRUENAS_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {"reason": "Remote shutdown via WOL Dashboard"}
 
     try:
-        resp = requests.post(url, headers=headers, verify=False, timeout=10)
+        resp = requests.post(url, json=payload, headers=headers, timeout=10)
         if resp.status_code == 200:
             return jsonify({"status": "shutdown_sent", "ip": ip})
         else:
