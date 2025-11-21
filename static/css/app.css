@@ -1,0 +1,39 @@
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    border-radius: 12px;
+}
+
+.card-title {
+    font-size: 1.4rem;
+}
+
+.action-btn {
+    font-size: 1.1rem;
+    padding: 12px;
+}
+
+@media (max-width: 576px) {
+    .card-title {
+        font-size: 1.2rem;
+    }
+}
+
+.fade-in { animation: fadeIn 0.8s ease-in; }
+@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+
+.pulse { animation: pulseAnim 1.5s infinite; }
+@keyframes pulseAnim {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.status-badge { transition: all 0.3s ease; }
+.status-online { color: #4ade80 !important; }
+.status-offline { color: #f87171 !important; }
+
+#countdown { font-size: 0.9rem; opacity: 0.7; }
+footer { text-align:center; padding:15px; font-size:0.85rem; opacity:0.6; }
