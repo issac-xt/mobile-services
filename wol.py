@@ -12,8 +12,6 @@ TRUENAS_API_KEY = os.getenv("TRUENAS_API_KEY")
 if not TRUENAS_API_KEY:
     raise ValueError("Please set TRUENAS_API_KEY in .env file")
 
-ALLOWED_USERS = ("xt", "guru")
-
 if not API_KEY or not TAILSCALE_URL:
     raise ValueError("Please set API_KEY and TAILSCALE_URL in .env file")
 
@@ -41,6 +39,31 @@ def get_tailscale_device(ts_name):
 
     return None
 
+def get_active_clients(ip):
+    headers = {"Authorization": f"Bearer {TRUENAS_API_KEY}"}
+    smb_url = f"http://{ip}/api/v2.0/smb/status/"
+    nfs_url = f"http://{ip}/api/v2.0/nfs/connected_clients/"
+
+    active_users = []
+
+    try:
+        smb = requests.get(smb_url, headers=headers, timeout=5).json()
+        for s in smb.get("sessions", []):
+            user = s.get("username") or s.get("host")
+            if user:
+                active_users.append(user)
+    except:
+        pass
+
+    try:
+        nfs = requests.get(nfs_url, headers=headers, timeout=5).json()
+        if isinstance(nfs, list):
+            active_users.extend(nfs)
+    except:
+        pass
+
+    return list(set(active_users))
+
 
 @app.route("/api/devices")
 def api_devices():
@@ -50,11 +73,19 @@ def api_devices():
         device_entries.append({
             "name": name,
             "online": online,
-            "local_ip": info["local_ip"]
+            "local_ip": info["local_ip"],
+            "ts_name": info.get("ts_name")
         })
     return jsonify(device_entries)
 
-@app.route("/wol/<device>")
+@app.route("/api/nas/active")
+def nas_active():
+    entry = DEVICES.get("nas")
+    ip = entry["local_ip"]
+    users = get_active_clients(ip)
+    return jsonify({"active": len(users) > 0, "users": users})
+
+@app.route("/start/<device>")
 def wol(device):
     entry = DEVICES.get(device)
 
@@ -92,6 +123,10 @@ def poweroff(device):
         return jsonify({"error": "Unknown device"}), 404
 
     ip = entry["local_ip"]
+    users = get_active_clients(ip)
+    if users:
+        return jsonify({"status": "in_use", "users": users}), 400
+
     url = f"http://{ip}/api/v2.0/system/shutdown/"
     headers = {
         "Authorization": f"Bearer {TRUENAS_API_KEY}",

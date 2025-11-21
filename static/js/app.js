@@ -32,9 +32,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         .then(r => r.json())
                         .then(list => {
                             let ts = list.devices || list;
-                            let match = ts.find(d => d.hostname === dev.name);
+                            let match = ts.find(d => d.hostname === dev.ts_name);
                             if (match) {
                                 tsEl.innerHTML = `Tailscale IP: ${match.addresses[0]}`;
+                            } else {
+                                tsEl.innerHTML = "";
                             }
                         });
 
@@ -63,75 +65,94 @@ document.addEventListener("DOMContentLoaded", () => {
             const action = e.target.dataset.action;
 
             if (action === "off") {
-                // Double-confirm shutdown
-                if (!confirm("Are you sure you want to shut down the NAS?")) return;
-                if (!confirm("This will power off the NAS. Are you REALLY sure?")) return;
-
                 const btn = e.target;
                 const device = btn.dataset.device;
 
-                btn.disabled = true;
-                btn.classList.add("pulse");
-                btn.innerHTML = "Shutting down...";
+                const modalEl = document.getElementById("shutdownModal");
+                const modalText = document.getElementById("shutdown-modal-text");
+                const confirmBtn = document.getElementById("shutdown-confirm-btn");
 
-                showToast("Shutdown command sent. Monitoring NAS status...", "warning");
+                modalText.innerHTML = "Are you sure you want to shut down the NAS?";
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
 
-                fetch(`/off/${device}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.status !== "shutdown_sent") {
-                            btn.disabled = false;
-                            btn.classList.remove("pulse");
-                            btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Shutdown`;
-                            const msg = data.message || "Unknown error";
-                            showToast("Shutdown failed: " + msg, "danger");
-                            return;
-                        }
+                confirmBtn.onclick = () => {
+                    modal.hide();
 
-                        // Now monitor ping until NAS goes offline or times out
-                        let attempts = 0;
-                        const maxAttempts = 12; // 12 * 5s = 60s
-                        const countdownEl = document.querySelector(`#countdown-${device}`);
-                        let waitLeft = maxAttempts * 5;
+                    btn.disabled = true;
+                    btn.classList.add("pulse");
+                    btn.innerHTML = "Shutting down...";
 
-                        const countdownTimer = setInterval(() => {
-                            waitLeft--;
-                            if (waitLeft >= 0 && countdownEl) {
-                                countdownEl.innerHTML = `Waiting for shutdown: ${Math.floor(waitLeft/60)}m ${waitLeft%60}s`;
+                    showToast("Shutdown command sent. Monitoring NAS status...", "warning");
+
+                    fetch(`/api/nas/active`)
+                        .then(r => r.json())
+                        .then(active => {
+                            if (active.active) {
+                                btn.disabled = false;
+                                btn.classList.remove("pulse");
+                                btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Shutdown`;
+                                showToast("NAS is currently in use by: " + active.users.join(", "), "danger");
+                                return;
                             }
-                        }, 1000);
 
-                        const pollInterval = setInterval(() => {
-                            attempts++;
-                            fetch("/api/devices")
+                            fetch(`/off/${device}`)
                                 .then(r => r.json())
-                                .then(devs => {
-                                    let d = devs.find(x => x.name === device);
-                                    if (!d || !d.online) {
-                                        clearInterval(pollInterval);
-                                        clearInterval(countdownTimer);
+                                .then(data => {
+                                    if (data.status !== "shutdown_sent") {
                                         btn.disabled = false;
                                         btn.classList.remove("pulse");
-                                        if (countdownEl) countdownEl.innerHTML = "NAS is OFF.";
-                                        showToast("NAS is now OFF.", "success");
-                                        refreshStatus();
-                                    } else if (attempts >= maxAttempts) {
-                                        clearInterval(pollInterval);
-                                        clearInterval(countdownTimer);
-                                        btn.disabled = false;
-                                        btn.classList.remove("pulse");
-                                        if (countdownEl) countdownEl.innerHTML = "Shutdown may not have completed.";
-                                        showToast("NAS still reachable. Shutdown may not have completed.", "danger");
+                                        btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Shutdown`;
+                                        const msg = data.message || "Unknown error";
+                                        showToast("Shutdown failed: " + msg, "danger");
+                                        return;
                                     }
+
+                                    let attempts = 0;
+                                    const maxAttempts = 12;
+                                    const countdownEl = document.querySelector(`#countdown-${device}`);
+                                    let waitLeft = maxAttempts * 5;
+
+                                    const countdownTimer = setInterval(() => {
+                                        waitLeft--;
+                                        if (waitLeft >= 0 && countdownEl) {
+                                            countdownEl.innerHTML = `Waiting for shutdown: ${Math.floor(waitLeft/60)}m ${waitLeft%60}s`;
+                                        }
+                                    }, 1000);
+
+                                    const pollInterval = setInterval(() => {
+                                        attempts++;
+                                        fetch("/api/devices")
+                                            .then(r => r.json())
+                                            .then(devs => {
+                                                let d = devs.find(x => x.name === device);
+                                                if (!d || !d.online) {
+                                                    clearInterval(pollInterval);
+                                                    clearInterval(countdownTimer);
+                                                    btn.disabled = false;
+                                                    btn.classList.remove("pulse");
+                                                    if (countdownEl) countdownEl.innerHTML = "NAS is OFF.";
+                                                    showToast("NAS is now OFF.", "success");
+                                                    refreshStatus();
+                                                } else if (attempts >= maxAttempts) {
+                                                    clearInterval(pollInterval);
+                                                    clearInterval(countdownTimer);
+                                                    btn.disabled = false;
+                                                    btn.classList.remove("pulse");
+                                                    if (countdownEl) countdownEl.innerHTML = "Shutdown may not have completed.";
+                                                    showToast("NAS still reachable. Shutdown may not have completed.", "danger");
+                                                }
+                                            });
+                                    }, 5000);
+                                })
+                                .catch(err => {
+                                    btn.disabled = false;
+                                    btn.classList.remove("pulse");
+                                    btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Shutdown`;
+                                    showToast("Shutdown error: " + err, "danger");
                                 });
-                        }, 5000);
-                    })
-                    .catch(err => {
-                        btn.disabled = false;
-                        btn.classList.remove("pulse");
-                        btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Shutdown`;
-                        showToast("Shutdown error: " + err, "danger");
-                    });
+                        });
+                };
 
                 return;
             }
