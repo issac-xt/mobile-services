@@ -1,0 +1,121 @@
+{
+  "name": "NAS Status",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "nas-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -304,
+        -48
+      ],
+      "id": "6791523d-734e-4c43-9446-a831728f491e",
+      "name": "Webhook",
+      "webhookId": "f0092864-754c-40d1-a340-b6352a05776e"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"up\",\n  \"success\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        320,
+        -112
+      ],
+      "id": "706a821c-60d9-4916-8bb9-000b63cca763",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "=http://{{ $json.query.ip }}/api/v2.0/system/info",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -96,
+        -48
+      ],
+      "id": "f2e2c427-bb35-4976-9582-c4bb40027c59",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "A9c4AlHU1jl9UgXG",
+          "name": "TrueNAS Bearer Token"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"down\",\n  \"success\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        320,
+        64
+      ],
+      "id": "0cc859a2-acc5-41d7-9917-844714d2c58d",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "949bf441-9206-4a61-88c9-281133d9cb79",
+  "meta": {
+    "instanceId": "02d44bf26e94f84ea7f9a2a4dccffef2015346e105cb069420cdcabb5252f5ad"
+  },
+  "id": "MewxJVm4dLwuVXNv",
+  "tags": []
+}

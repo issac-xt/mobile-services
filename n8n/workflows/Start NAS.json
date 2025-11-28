@@ -1,0 +1,142 @@
+{
+  "name": "Start NAS",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "start-nas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -384,
+        -80
+      ],
+      "id": "8b3832cb-6d37-43b3-aa9c-591e85ba2603",
+      "name": "Webhook",
+      "webhookId": "9c18ab54-2cb2-4987-bf67-5d09759c594e"
+    },
+    {
+      "parameters": {
+        "command": "python3 wol.py 00:27:0e:14:db:0f"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -80
+      ],
+      "id": "e1705b5c-0b82-40ad-9a41-6f99736d7714",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "url": "https://api.tailscale.com/api/v2/tailnet/tail281378.ts.net/devices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        32,
+        -80
+      ],
+      "id": "d7e230e6-6ee2-4b8b-a6c2-f7bee16a4499",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "LL22lbCNrEg4UKx0",
+          "name": "TailScale"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const devices = $input.first().json.devices;\n\nconst nas = devices.find(d => d.hostname === \"xt-nas\");\n\nreturn {\n  ip: nas?.addresses[0]\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -80
+      ],
+      "id": "ffd5402e-4286-4f54-9895-54e26bc7aba0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n\"tailscale_ip\": \"{{ $json.ip }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        448,
+        -80
+      ],
+      "id": "c6ee253c-b541-4594-bdc8-8c3d683bc902",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "74245e06-1d70-4b5c-8cdd-7653eb9eb455",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02d44bf26e94f84ea7f9a2a4dccffef2015346e105cb069420cdcabb5252f5ad"
+  },
+  "id": "RPk0K6VNmDx3hPMV",
+  "tags": []
+}

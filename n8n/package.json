@@ -1,0 +1,6 @@
+{
+	"dependencies": {
+		"better-sqlite3": "^12.4.6",
+		"n8n": "^1.121.3"
+	}
+}

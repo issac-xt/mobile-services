@@ -1,0 +1,439 @@
+{
+  "name": "Auto Shutdown NAS",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://api.tailscale.com/api/v2/tailnet/tail281378.ts.net/devices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -272,
+        -128
+      ],
+      "id": "3bbb6ccc-c79e-4cf9-acae-0d9ec8af8993",
+      "name": "Get TailScale devices",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "LL22lbCNrEg4UKx0",
+          "name": "TailScale"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -480,
+        -128
+      ],
+      "id": "a6df8cf5-48f8-405a-a55f-c6f664d84428",
+      "name": "4 Every 15 Mins"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get Tailscale devices list\nconst devices = $json.devices;\n\n// Find NAS entry\nconst nas = devices.find(d => d.hostname === \"xt-nas\");\n\n// Error if not found\nif (!nas) {\n  throw new Error(\"NAS device not found in Tailscale device list\");\n}\n\n// Extract Tailscale IP (first 100.x.x.x address)\nconst tsIP = nas.addresses.find(addr => addr.startsWith(\"100.\"));\n\n// Error if not found\nif (!tsIP) {\n  throw new Error(\"NAS device not found in Tailscale device list\");\n}\n\n// Output\nreturn {\n  ip: tsIP\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -128
+      ],
+      "id": "257d77ee-7ff7-48e4-b946-4c4fcd0e7461",
+      "name": "Get NAS Ip from TailScale"
+    },
+    {
+      "parameters": {
+        "url": "=http://{{ $json.ip }}/api/v2.0/system/info",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        144,
+        -128
+      ],
+      "id": "07819de5-2849-4610-bac3-0ae87d4c91a6",
+      "name": "check NAS Status",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "A9c4AlHU1jl9UgXG",
+          "name": "TrueNAS Bearer Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6660a0af-6a50-49a2-b65d-733d38fe8094",
+              "leftValue": "={{ $json.hostname }}",
+              "rightValue": "truenas",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        -128
+      ],
+      "id": "cef34a8d-21c9-4bd6-9c72-fec7193add3b",
+      "name": "ON/OFF?"
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=sudo smbstatus -S"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        592,
+        -320
+      ],
+      "id": "05bbd5f4-37a0-48a2-9e7d-4b680e4296e4",
+      "name": "fetch NAS Users",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "Dw1F8TlZ6G5UWUgk",
+          "name": "TrueNAS SSH"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "71ff942a-569b-462e-8580-8d38e957dddc",
+              "leftValue": "={{ $json.userCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        -320
+      ],
+      "id": "3b9ba31d-d4fa-46ae-900f-aabf6230dc74",
+      "name": "In Use?"
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=sudo smbstatus -S"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        -224
+      ],
+      "id": "42804af2-683d-4d73-9a89-6d4bd3502b6d",
+      "name": "fetch NAS Users again",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "Dw1F8TlZ6G5UWUgk",
+          "name": "TrueNAS SSH"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1216,
+        -224
+      ],
+      "id": "6f55e704-7b44-41a8-8ba9-d3cc326d464e",
+      "name": "Wait",
+      "webhookId": "a8fa146c-d26d-4c34-aa1b-3247238501d8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout;\n\n// No users?\nif (!output.trim()) {\n  return [{ json: { users: [] }}];\n}\n\n// Split into lines\nconst lines = output.split(\"\\n\");\n\nreturn {\n  userCount: lines.length - 2\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -320
+      ],
+      "id": "5a82fced-a5f3-461d-8cb8-1d4c4217fe34",
+      "name": "get user count"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout;\n\n// No users?\nif (!output.trim()) {\n  return [{ json: { users: [] }}];\n}\n\n// Split into lines\nconst lines = output.split(\"\\n\");\n\nreturn {\n  userCount: lines.length - 2\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -224
+      ],
+      "id": "3c1da4fb-6bad-4f7f-b5ed-3a1f5abe474e",
+      "name": "count users again"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "71ff942a-569b-462e-8580-8d38e957dddc",
+              "leftValue": "={{ $json.userCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1808,
+        -224
+      ],
+      "id": "0aaf8382-4289-4b81-b35c-79a89a1ab691",
+      "name": "Is still inactive?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://{{ $('Get NAS Ip from TailScale').item.json.ip }}/api/v2.0/system/shutdown/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"reason\": \"Automatic shutdown triggered by n8n – NAS idle (no SMB users)\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2080,
+        -240
+      ],
+      "id": "0b8a0705-a771-4149-9133-ca9a5153e959",
+      "name": "Shutdown",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "A9c4AlHU1jl9UgXG",
+          "name": "TrueNAS Bearer Token"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get TailScale devices": {
+      "main": [
+        [
+          {
+            "node": "Get NAS Ip from TailScale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 Every 15 Mins": {
+      "main": [
+        [
+          {
+            "node": "Get TailScale devices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get NAS Ip from TailScale": {
+      "main": [
+        [
+          {
+            "node": "check NAS Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check NAS Status": {
+      "main": [
+        [
+          {
+            "node": "ON/OFF?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ON/OFF?": {
+      "main": [
+        [
+          {
+            "node": "fetch NAS Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch NAS Users": {
+      "main": [
+        [
+          {
+            "node": "get user count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "In Use?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "fetch NAS Users again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get user count": {
+      "main": [
+        [
+          {
+            "node": "In Use?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch NAS Users again": {
+      "main": [
+        [
+          {
+            "node": "count users again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "count users again": {
+      "main": [
+        [
+          {
+            "node": "Is still inactive?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is still inactive?": {
+      "main": [
+        [
+          {
+            "node": "Shutdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "44079e36-e361-4b6d-804e-7ceb4b7ad2a2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02d44bf26e94f84ea7f9a2a4dccffef2015346e105cb069420cdcabb5252f5ad"
+  },
+  "id": "3jd9DiramSMcNwbG",
+  "tags": []
+}

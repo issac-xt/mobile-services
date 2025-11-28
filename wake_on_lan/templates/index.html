@@ -7,7 +7,7 @@
     <title>Device Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body class="bg-dark text-light">
     <div class="container py-4">
@@ -32,8 +32,8 @@
                         <p class="ts-ip small text-center text-info"></p>
                         <p id="countdown-{{ dev.name }}" class="text-center small"></p>
                         {% if dev.online %}
-                            <button class="btn btn-danger w-100 action-btn" data-device="{{ dev.name }}" data-action="off">
-                                <i class="fa-solid fa-power-off"></i> Shutdown
+                            <button class="btn btn-secondary w-100" disabled>
+                                <i class="fa-solid fa-check-circle"></i> Online
                             </button>
                         {% else %}
                             <button class="btn btn-primary w-100 action-btn" data-device="{{ dev.name }}" data-action="start">
@@ -49,32 +49,6 @@
 
     <script src="/static/js/app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Shutdown Confirmation Modal -->
-    <div class="modal fade" id="shutdownModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-light">
-          <div class="modal-header border-0">
-            <h5 class="modal-title">
-              <i class="fa-solid fa-power-off text-danger me-2"></i> Confirm Shutdown
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-          </div>
-
-          <div class="modal-body text-center">
-            <p id="shutdown-modal-text" class="mb-3">
-              Are you sure you want to shut down the NAS?
-            </p>
-          </div>
-
-          <div class="modal-footer border-0">
-            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button id="shutdown-confirm-btn" class="btn btn-danger">
-              <i class="fa-solid fa-check"></i> Yes, Shut Down
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
     <footer>
         Built with ❤️ by XT. If you're stuck, reach out anytime.
     </footer>
