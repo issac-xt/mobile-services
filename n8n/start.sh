@@ -1,40 +1,56 @@
 #!/data/data/com.termux/files/usr/bin/sh
 # ---------------------------------------------
 # n8n Start Script for Termux (Android Phone)
-# ---------------------------------------------
-# This script:
-# 1. Ensures all required Termux packages are installed
-# 2. Ensures pnpm is available
-# 3. Ensures better-sqlite3 native module is built
-# 4. Starts n8n with SQLite backend
+# Uses PostgreSQL (NO SQLite, NO native module builds)
 # ---------------------------------------------
 
-echo ">>> Checking required Termux packages..."
+echo ">>> Updating packages..."
 pkg update -y
-pkg install -y nodejs-lts python make clang sqlite
 
+echo ">>> Installing required Termux packages..."
+pkg install -y nodejs-lts python postgresql
+
+# ---------- PostgreSQL Setup ----------
+PGDATA="$PREFIX/var/lib/postgresql"
+export PGDATA
+
+if [ ! -d "$PGDATA" ]; then
+  echo ">>> Initializing PostgreSQL database..."
+  initdb
+fi
+
+echo ">>> Starting PostgreSQL..."
+pg_ctl start
+
+sleep 2
+
+# Ensure n8n database + user
+echo ">>> Ensuring PostgreSQL user and database..."
+createuser n8n 2>/dev/null
+createdb -O n8n n8n 2>/dev/null
+psql -c "ALTER USER n8n WITH PASSWORD 'pass';" >/dev/null
+
+# ---------- PNPM Setup ----------
 echo ">>> Ensuring pnpm is installed..."
 if ! command -v pnpm >/dev/null 2>&1; then
   npm install -g pnpm
 fi
 
-echo ">>> Installing project dependencies..."
-pnpm install
+echo ">>> Installing project dependencies (no native builds)..."
+pnpm install --shamefully-hoist
 
-echo ">>> Approving native module builds (better-sqlite3)..."
-pnpm approve-builds
-
-echo ">>> Rebuilding better-sqlite3 for Termux..."
-pnpm rebuild better-sqlite3
-
-# Environment setup
+# ---------- Environment Variables ----------
 unset N8N_CONFIG_FILES
-export DB_TYPE=sqlite
-export DB_SQLITE_PATH="$PWD/n8n.sqlite"
+export DB_TYPE=postgresdb
+export DB_POSTGRESDB_HOST=127.0.0.1
+export DB_POSTGRESDB_PORT=5432
+export DB_POSTGRESDB_DATABASE=n8n
+export DB_POSTGRESDB_USER=n8n
+export DB_POSTGRESDB_PASSWORD=pass
 
 if [ -f ".env" ]; then
   export $(grep -v '^#' .env | xargs)
 fi
 
-echo ">>> Starting n8n using pnpm..."
+echo ">>> Starting n8n..."
 pnpm exec n8n
